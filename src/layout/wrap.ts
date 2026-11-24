@@ -37,6 +37,11 @@ export type LayoutInput = {
   boxHeight?: number
   /** Absent = top, which is what every file saved before this existed means. */
   verticalAlign?: VerticalAlign
+  /**
+   * Extra advance after every glyph, PDF points (PDF's `Tc`); absent = 0.
+   * Measured between glyphs only -- see `FontMetrics.widthOfText`.
+   */
+  letterSpacing?: number
 }
 
 /**
@@ -79,9 +84,13 @@ function graphemeClusters(word: string): string[] {
 }
 
 function breakParagraph(
-  paragraph: string, width: number, size: number, metrics: FontMetrics,
+  paragraph: string, width: number, size: number, metrics: FontMetrics, letterSpacing: number,
 ): string[] {
   if (paragraph === '') return ['']
+  // Unspaced text calls widthOfText exactly as it always has: two
+  // arguments, so a FontMetrics written before spacing existed still works.
+  const measure = (text: string) =>
+    letterSpacing === 0 ? metrics.widthOfText(text, size) : metrics.widthOfText(text, size, letterSpacing)
 
   const lines: string[] = []
   let current = ''
@@ -89,7 +98,7 @@ function breakParagraph(
   for (const word of paragraph.split(' ')) {
     const candidate = current === '' ? word : current + ' ' + word
 
-    if (metrics.widthOfText(candidate, size) <= width) {
+    if (measure(candidate) <= width) {
       current = candidate
       continue
     }
@@ -100,14 +109,14 @@ function breakParagraph(
     }
 
     // The word alone may still not fit; break it by character.
-    if (metrics.widthOfText(word, size) <= width) {
+    if (measure(word) <= width) {
       current = word
       continue
     }
 
     let chunk = ''
     for (const cluster of graphemeClusters(word)) {
-      if (chunk !== '' && metrics.widthOfText(chunk + cluster, size) > width) {
+      if (chunk !== '' && measure(chunk + cluster) > width) {
         lines.push(chunk)
         chunk = cluster
       } else {
@@ -149,6 +158,8 @@ export function slotLayout(slot: Slot, text: string, metrics?: FontMetrics): Lay
     // its text, so it gets none, and lays out exactly as it always has.
     boxHeight: slot.height ? Math.max(0, slot.height - inset.top * 2) : undefined,
     verticalAlign: slot.verticalAlign,
+    // Only when set, so an unspaced slot's input is exactly what it was.
+    ...(slot.letterSpacing ? { letterSpacing: slot.letterSpacing } : {}),
   }
 }
 
@@ -189,17 +200,19 @@ export function layoutText(input: LayoutInput, metrics: FontMetrics): Positioned
   // '\r' renders (a browser text node silently drops it; a real embedded
   // font may measure it or show a .notdef box).
   const normalized = input.text.replace(/\r\n?/g, '\n')
+  const spacing = input.letterSpacing ?? 0
 
   const raw = normalized
     .split('\n')
-    .flatMap((p) => breakParagraph(p, input.width, input.size, metrics))
+    .flatMap((p) => breakParagraph(p, input.width, input.size, metrics, spacing))
 
   const step = input.size * input.lineHeight
   const firstBaseline =
     input.originY - metrics.ascender(input.size) - verticalOffset(input, raw.length, metrics)
 
   return raw.map((text, i) => {
-    const lineWidth = metrics.widthOfText(text, input.size)
+    const lineWidth =
+      spacing === 0 ? metrics.widthOfText(text, input.size) : metrics.widthOfText(text, input.size, spacing)
     const slack = input.width - lineWidth
     const dx = input.align === 'center' ? slack / 2 : input.align === 'right' ? slack : 0
     return {

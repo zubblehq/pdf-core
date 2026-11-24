@@ -27,6 +27,7 @@ export const fileIdSchema = z.string().regex(/^(?:[0-9a-f]{64}|[0-9a-f]{32})$/)
 export const fontIdSchema = z.enum([
   'sans', 'sans-bold', 'serif', 'serif-bold', 'mono',
   'sans-light', 'sans-medium', 'sans-semibold',
+  'sourceserif', 'sourceserif-bold', 'arial', 'arial-bold', 'georgia', 'georgia-bold',
 ])
 export const pageSizeSchema = z.object({ width: z.number().positive(), height: z.number().positive() })
 
@@ -45,6 +46,8 @@ export const templateSlotSchema = z.object({
   align: z.enum(['left', 'center', 'right']),
   verticalAlign: z.enum(['top', 'middle', 'bottom']).optional(),
   lineHeight: z.number().positive(),
+  /** Absent on everything saved before letter spacing existed: no spacing. */
+  letterSpacing: z.number().optional(),
   paddingLeft: z.number().min(0).optional(),
   paddingTop: z.number().min(0).optional(),
   /** Both at once; still read so files saved before the two existed still open. */
@@ -59,6 +62,8 @@ export const tableStyleSchema = z.object({
   align: z.enum(['left', 'center', 'right']),
   verticalAlign: z.enum(['top', 'middle', 'bottom']).optional(),
   lineHeight: z.number().positive(),
+  /** Absent on everything saved before letter spacing existed: no spacing. */
+  letterSpacing: z.number().optional(),
   paddingLeft: z.number().min(0).optional(),
   paddingTop: z.number().min(0).optional(),
   /** Both at once; still read so files saved before the two existed still open. */

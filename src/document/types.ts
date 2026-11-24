@@ -59,6 +59,13 @@ export type Slot = {
    */
   verticalAlign?: VerticalAlign
   lineHeight: number
+  /**
+   * Letter spacing (tracking): extra advance after every glyph, PDF
+   * points, drawn with PDF's `Tc`. May be negative. Absent or 0 = none,
+   * which is every slot saved before this existed. Spaced text is shaped
+   * without ligatures -- see `SPACED_TEXT_FEATURES` in layout/metrics.ts.
+   */
+  letterSpacing?: number
 }
 
 export type EditorDocument = {
