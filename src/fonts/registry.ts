@@ -1,7 +1,15 @@
-export type FontId = 'sans' | 'sans-bold' | 'serif' | 'serif-bold' | 'mono'
+export type FontId =
+  | 'sans' | 'sans-bold' | 'serif' | 'serif-bold' | 'mono'
+  | 'sans-light' | 'sans-medium' | 'sans-semibold'
 
+/**
+ * Every id, in a fixed order. The three lighter-than-bold Inter weights
+ * come last, after the original five, so the position of every id a saved
+ * layout already uses is unchanged.
+ */
 export const FONT_IDS: readonly FontId[] = [
   'sans', 'sans-bold', 'serif', 'serif-bold', 'mono',
+  'sans-light', 'sans-medium', 'sans-semibold',
 ] as const
 
 /**
@@ -18,7 +26,10 @@ export const FONT_IDS: readonly FontId[] = [
  *
  * Provenance:
  *  - Inter 4.1, static instances from `extras/ttf/` of the official release
- *    (github.com/rsms/inter) -- SIL OFL 1.1, ./Inter-LICENSE.txt.
+ *    (github.com/rsms/inter) -- SIL OFL 1.1, ./Inter-LICENSE.txt. Light,
+ *    Medium and SemiBold come from the same Inter-4.1.zip as Regular and
+ *    Bold (whose bytes it matches), so all five weights are one build.
+ *    PT Serif and IBM Plex Mono carry no extra weights here.
  *  - PT Serif, IBM Plex Mono -- SIL OFL 1.1, via github.com/google/fonts.
  */
 export const FONT_FILES: Record<FontId, string> = {
@@ -27,6 +38,9 @@ export const FONT_FILES: Record<FontId, string> = {
   serif: 'PT_Serif-Web-Regular.ttf',
   'serif-bold': 'PT_Serif-Web-Bold.ttf',
   mono: 'IBMPlexMono-Regular.ttf',
+  'sans-light': 'Inter-Light.ttf',
+  'sans-medium': 'Inter-Medium.ttf',
+  'sans-semibold': 'Inter-SemiBold.ttf',
 }
 
 /**
@@ -38,6 +52,9 @@ export const FONT_FILES: Record<FontId, string> = {
 export const FONT_LABELS: Record<FontId, string> = {
   sans: 'Inter',
   'sans-bold': 'Inter Bold',
+  'sans-light': 'Inter Light',
+  'sans-medium': 'Inter Medium',
+  'sans-semibold': 'Inter SemiBold',
   serif: 'PT Serif',
   'serif-bold': 'PT Serif Bold',
   mono: 'IBM Plex Mono',
@@ -57,6 +74,9 @@ export const FONT_LABELS: Record<FontId, string> = {
 export const FONT_CSS_FAMILY: Record<FontId, string> = {
   sans: 'PdfSlotSans',
   'sans-bold': 'PdfSlotSansBold',
+  'sans-light': 'PdfSlotSansLight',
+  'sans-medium': 'PdfSlotSansMedium',
+  'sans-semibold': 'PdfSlotSansSemibold',
   serif: 'PdfSlotSerif',
   'serif-bold': 'PdfSlotSerifBold',
   mono: 'PdfSlotMono',

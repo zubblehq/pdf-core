@@ -155,9 +155,9 @@ test("the exported PDF's line breaks match what the layout engine predicted", as
  * Right-aligned deliberately, for the reason the wrap test above explains:
  * it makes each line's drawn x a function of what that line measures as, so
  * the comparison is a fingerprint of the shaping and not just of the count.
- * Both weights, because both are new.
+ * Every Inter weight, because each is its own file with its own shaping.
  */
-test.each(['sans', 'sans-bold'] as const)(
+test.each(['sans', 'sans-bold', 'sans-light', 'sans-medium', 'sans-semibold'] as const)(
   "%s: text the face shapes prints exactly where the layout engine put it",
   async (fontId) => {
     const slot: Slot = {
@@ -366,3 +366,28 @@ test('the row put on the page is the row that gets generated', async () => {
   expect(shown.map((l) => l.text)).toContain('Abel')
   expect(shown.map((l) => l.text)).toContain('10.00')
 })
+
+/**
+ * Vertical align is the one place the export reads a box's height, so it
+ * gets the same proof as padding: every cell of a table, middle- and then
+ * bottom-aligned, printed exactly where the preview lays it out -- and
+ * actually moved, or the test would pass on a no-op.
+ */
+for (const verticalAlign of ['middle', 'bottom'] as const) {
+  test(`a ${verticalAlign}-aligned table prints exactly where the preview lays it out`, async () => {
+    const cells = filledCells(4).map((cell) => ({ ...cell, verticalAlign }))
+    const metrics = createFontMetrics(fonts.sans)
+    const predicted = cells.flatMap((cell) => layoutText(slotLayout(cell, cell.text, metrics), metrics))
+    const top = filledCells(4).flatMap((cell) => layoutText(slotLayout(cell, cell.text, metrics), metrics))
+
+    const out = await renderPdf(await doc(), cells, fonts)
+    const drawn = extractDrawnPositions(requireContentStreamText(out))
+
+    expect(drawn).toHaveLength(predicted.length)
+    predicted.forEach((line, i) => {
+      expect(drawn[i]?.x).toBeCloseTo(line.x, 3)
+      expect(drawn[i]?.y).toBeCloseTo(line.baselineY, 3)
+      expect(line.baselineY).toBeLessThan(top[i]!.baselineY)
+    })
+  })
+}

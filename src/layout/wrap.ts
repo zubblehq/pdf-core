@@ -3,6 +3,13 @@ import type { Slot } from '../document/types'
 
 export type Align = 'left' | 'center' | 'right'
 
+/**
+ * Where the lines sit inside a box that is taller than they are. Only a
+ * box with a height of its own (a dragged slot, a table cell) has room to
+ * move them in; a box as tall as its text looks the same either way.
+ */
+export type VerticalAlign = 'top' | 'middle' | 'bottom'
+
 /** A single laid-out line. `x` and `baselineY` are PDF points. */
 export type PositionedLine = { text: string; x: number; baselineY: number }
 
@@ -22,6 +29,14 @@ export type LayoutInput = {
   /** Top-left corner of the slot box, in PDF points. */
   originX: number
   originY: number
+  /**
+   * The height the lines may use, PDF points, measured down from `originY`
+   * (padding already taken off). Absent = the box is exactly as tall as its
+   * text, and `verticalAlign` has nothing to do.
+   */
+  boxHeight?: number
+  /** Absent = top, which is what every file saved before this existed means. */
+  verticalAlign?: VerticalAlign
 }
 
 /**
@@ -127,6 +142,13 @@ export function slotLayout(slot: Slot, text: string, metrics?: FontMetrics): Lay
     originX: slot.x + inset.left,
     // PDF y grows upward, so insetting from the top means going down.
     originY: slot.y - inset.top,
+    // The top padding is kept clear at the bottom too, the way the left
+    // padding is kept on the right: bottom-aligned text in a ruled cell
+    // wants holding off the rule under it just as top-aligned text does
+    // the one above. A box with no height of its own has nowhere to move
+    // its text, so it gets none, and lays out exactly as it always has.
+    boxHeight: slot.height ? Math.max(0, slot.height - inset.top * 2) : undefined,
+    verticalAlign: slot.verticalAlign,
   }
 }
 
@@ -173,7 +195,8 @@ export function layoutText(input: LayoutInput, metrics: FontMetrics): Positioned
     .flatMap((p) => breakParagraph(p, input.width, input.size, metrics))
 
   const step = input.size * input.lineHeight
-  const firstBaseline = input.originY - metrics.ascender(input.size)
+  const firstBaseline =
+    input.originY - metrics.ascender(input.size) - verticalOffset(input, raw.length, metrics)
 
   return raw.map((text, i) => {
     const lineWidth = metrics.widthOfText(text, input.size)
@@ -185,4 +208,22 @@ export function layoutText(input: LayoutInput, metrics: FontMetrics): Positioned
       baselineY: firstBaseline - i * step,
     }
   })
+}
+
+/**
+ * How far below the top of the box the first line starts, PDF points.
+ *
+ * What is centred (or pushed down) is the ink a reader sees: from the
+ * first line's ascender to the last line's descender -- the same extent
+ * `layoutHeight` calls the glyphs. Never negative: text taller than its
+ * box stays hung from the top, where it was, rather than climbing out
+ * above the box and over whatever is printed there.
+ */
+function verticalOffset(input: LayoutInput, lineCount: number, metrics: FontMetrics): number {
+  const align = input.verticalAlign ?? 'top'
+  if (align === 'top' || input.boxHeight === undefined) return 0
+  const step = input.size * input.lineHeight
+  const ink = metrics.ascender(input.size) + (lineCount - 1) * step - metrics.descender(input.size)
+  const slack = Math.max(0, input.boxHeight - ink)
+  return align === 'middle' ? slack / 2 : slack
 }
