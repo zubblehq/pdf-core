@@ -28,6 +28,8 @@ export const fontIdSchema = z.enum([
   'sans', 'sans-bold', 'serif', 'serif-bold', 'mono',
   'sans-light', 'sans-medium', 'sans-semibold',
   'sourceserif', 'sourceserif-bold', 'arial', 'arial-bold', 'georgia', 'georgia-bold',
+  'sourceserif-light', 'sourceserif-semibold', 'georgia-medium', 'georgia-semibold',
+  'mono-light', 'mono-medium', 'mono-semibold', 'mono-bold',
 ])
 export const pageSizeSchema = z.object({ width: z.number().positive(), height: z.number().positive() })
 
