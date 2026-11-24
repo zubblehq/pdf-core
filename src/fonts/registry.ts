@@ -1,15 +1,18 @@
 export type FontId =
   | 'sans' | 'sans-bold' | 'serif' | 'serif-bold' | 'mono'
   | 'sans-light' | 'sans-medium' | 'sans-semibold'
+  | 'sourceserif' | 'sourceserif-bold' | 'arial' | 'arial-bold' | 'georgia' | 'georgia-bold'
 
 /**
- * Every id, in a fixed order. The three lighter-than-bold Inter weights
- * come last, after the original five, so the position of every id a saved
- * layout already uses is unchanged.
+ * Every id, in a fixed order. New ids only ever go on the end -- the three
+ * lighter-than-bold Inter weights after the original five, then Source
+ * Serif 4, Arial and Georgia -- so the position of every id a saved layout
+ * already uses is unchanged.
  */
 export const FONT_IDS: readonly FontId[] = [
   'sans', 'sans-bold', 'serif', 'serif-bold', 'mono',
   'sans-light', 'sans-medium', 'sans-semibold',
+  'sourceserif', 'sourceserif-bold', 'arial', 'arial-bold', 'georgia', 'georgia-bold',
 ] as const
 
 /**
@@ -31,6 +34,18 @@ export const FONT_IDS: readonly FontId[] = [
  *    Bold (whose bytes it matches), so all five weights are one build.
  *    PT Serif and IBM Plex Mono carry no extra weights here.
  *  - PT Serif, IBM Plex Mono -- SIL OFL 1.1, via github.com/google/fonts.
+ *  - Source Serif 4 4.005, static TTFs from `TTF/` of the official desktop
+ *    release (github.com/adobe-fonts/source-serif) -- SIL OFL 1.1,
+ *    ./SourceSerif4-LICENSE.md.
+ *  - `arial` is Liberation Sans 2.1.5 (github.com/liberationfonts) -- SIL OFL
+ *    1.1, ./LiberationSans-LICENSE.txt. Arial itself is licensed by Monotype
+ *    and cannot be embedded in the PDFs we ship; Liberation Sans has the same
+ *    advance width for every character, so text breaks where Arial's would.
+ *  - `georgia` is Gelasio (github.com/SorkinType/Gelasio, fonts/ttf) -- SIL
+ *    OFL 1.1, ./Gelasio-LICENSE.txt. Georgia is likewise licensed; Gelasio
+ *    is metric-compatible with it.
+ *  The ids say `arial` and `georgia` because that is what a user asks for:
+ *  should a licence for the real faces arrive, only the files change.
  */
 export const FONT_FILES: Record<FontId, string> = {
   sans: 'Inter-Regular.ttf',
@@ -41,6 +56,12 @@ export const FONT_FILES: Record<FontId, string> = {
   'sans-light': 'Inter-Light.ttf',
   'sans-medium': 'Inter-Medium.ttf',
   'sans-semibold': 'Inter-SemiBold.ttf',
+  sourceserif: 'SourceSerif4-Regular.ttf',
+  'sourceserif-bold': 'SourceSerif4-Bold.ttf',
+  arial: 'LiberationSans-Regular.ttf',
+  'arial-bold': 'LiberationSans-Bold.ttf',
+  georgia: 'Gelasio-Regular.ttf',
+  'georgia-bold': 'Gelasio-Bold.ttf',
 }
 
 /**
@@ -58,6 +79,12 @@ export const FONT_LABELS: Record<FontId, string> = {
   serif: 'PT Serif',
   'serif-bold': 'PT Serif Bold',
   mono: 'IBM Plex Mono',
+  sourceserif: 'Source Serif 4',
+  'sourceserif-bold': 'Source Serif 4 Bold',
+  arial: 'Arial (Liberation Sans)',
+  'arial-bold': 'Arial (Liberation Sans) Bold',
+  georgia: 'Georgia (Gelasio)',
+  'georgia-bold': 'Georgia (Gelasio) Bold',
 }
 
 /**
@@ -80,6 +107,12 @@ export const FONT_CSS_FAMILY: Record<FontId, string> = {
   serif: 'PdfSlotSerif',
   'serif-bold': 'PdfSlotSerifBold',
   mono: 'PdfSlotMono',
+  sourceserif: 'PdfSlotSourceSerif',
+  'sourceserif-bold': 'PdfSlotSourceSerifBold',
+  arial: 'PdfSlotArial',
+  'arial-bold': 'PdfSlotArialBold',
+  georgia: 'PdfSlotGeorgia',
+  'georgia-bold': 'PdfSlotGeorgiaBold',
 }
 
 export type FontBytes = Record<FontId, Uint8Array>

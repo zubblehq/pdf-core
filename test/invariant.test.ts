@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { PDFDocument } from '@cantoo/pdf-lib'
-import { expect, test } from 'vitest'
+import { describe, expect, test } from 'vitest'
 import { renderPdf } from '../src/render/pdf.js'
 import { normalizePdf } from '../src/document/normalize.js'
 import { FONT_FILES, FONT_IDS, type FontBytes } from '../src/fonts/registry.js'
@@ -12,6 +12,7 @@ import { toSlots } from '../src/document/template.js'
 import { tableCells, tableFromStored, type TemplateTable } from '../src/document/table.js'
 import type { Slot } from '../src/document/types.js'
 import { requireContentStreamText } from './helpers/content-stream.js'
+import { drawnGlyphRuns } from './helpers/glyph-runs.js'
 
 const dir = fileURLToPath(new URL('../src/fonts/files/', import.meta.url))
 const fonts = Object.fromEntries(
@@ -179,6 +180,35 @@ test.each(['sans', 'sans-bold', 'sans-light', 'sans-medium', 'sans-semibold'] as
     const perCharacter = [...slot.text].reduce((t, c) => t + metrics.widthOfText(c, slot.size), 0)
     expect(whole).toBeLessThan(perCharacter)
 
+    const predicted = layoutText(slotLayout(slot, slot.text, metrics), metrics)
+    expect(predicted.length).toBeGreaterThanOrEqual(2)
+
+    const out = await renderPdf(await doc(), [slot], fonts)
+    const drawn = extractDrawnPositions(requireContentStreamText(out))
+
+    expect(drawn).toHaveLength(predicted.length)
+    predicted.forEach((line, i) => {
+      expect(drawn[i]?.x).toBeCloseTo(line.x, 3)
+      expect(drawn[i]?.y).toBeCloseTo(line.baselineY, 3)
+    })
+  },
+)
+
+/**
+ * The faces added after Inter -- Source Serif 4, and the Arial and Georgia
+ * stand-ins (Liberation Sans, Gelasio) -- each its own file: a wrapped,
+ * right-aligned paragraph prints exactly where the layout engine put it.
+ */
+test.each(['sourceserif', 'sourceserif-bold', 'arial', 'arial-bold', 'georgia', 'georgia-bold'] as const)(
+  '%s: a wrapped right-aligned paragraph prints exactly where the layout engine put it',
+  async (fontId) => {
+    const slot: Slot = {
+      id: 'face', page: 0, x: 40, y: 760, width: 160,
+      text: 'Subcontractor shall be bound by the procedures therein, plus any tolling.',
+      fontId, size: 11, color: { r: 0, g: 0, b: 0 },
+      align: 'right', lineHeight: 1.2,
+    }
+    const metrics = createFontMetrics(fonts[slot.fontId])
     const predicted = layoutText(slotLayout(slot, slot.text, metrics), metrics)
     expect(predicted.length).toBeGreaterThanOrEqual(2)
 
@@ -391,3 +421,91 @@ for (const verticalAlign of ['middle', 'bottom'] as const) {
     })
   })
 }
+
+/**
+ * Letter spacing: the export draws it with `Tc`, which moves every glyph
+ * after the first by the spacing, and the layout engine has to have
+ * wrapped and aligned with the same arithmetic or a right-aligned line
+ * ends off its edge. Each case is read back glyph by glyph from the PDF
+ * (helpers/glyph-runs.ts: the text matrix, the `Tc`, and the font's own
+ * `/W` widths) -- not from anything `layoutText` returns.
+ *
+ * Aligned on the ink: the `Tc` after a line's last glyph is empty space,
+ * so a right-aligned line's last glyph ends on the box edge and a centred
+ * line's ink is centred in the box. The text includes `->`, which Inter
+ * shapes into one arrow unspaced; spaced text is drawn without ligatures,
+ * and the glyph count below proves the writer did the same.
+ */
+describe.each([
+  { letterSpacing: 2.5, align: 'left' },
+  { letterSpacing: 2.5, align: 'right' },
+  { letterSpacing: 2.5, align: 'center' },
+  { letterSpacing: -0.6, align: 'left' },
+  { letterSpacing: -0.6, align: 'right' },
+  { letterSpacing: -0.6, align: 'center' },
+] as const)('letter spacing $letterSpacing, $align-aligned', ({ letterSpacing, align }) => {
+  test.each(['sans', 'serif'] as const)('%s: a wrapped paragraph prints every glyph where the layout engine put it', async (fontId) => {
+    const slot: Slot = {
+      id: 'spaced', page: 0, x: 40, y: 760, width: 140, height: 120,
+      text: 'Draft -> review -> office filing for the owner\nNet 30, retainage 10%',
+      fontId, size: 11, color: { r: 0, g: 0, b: 0 },
+      align, lineHeight: 1.3, paddingLeft: 3, paddingTop: 2, verticalAlign: 'middle',
+      letterSpacing,
+    }
+    const metrics = createFontMetrics(fonts[slot.fontId])
+    const input = slotLayout(slot, slot.text, metrics)
+    const predicted = layoutText(input, metrics)
+    expect(predicted.length).toBeGreaterThanOrEqual(3)
+
+    const runs = await drawnGlyphRuns(await renderPdf(await doc(), [slot], fonts))
+    expect(runs).toHaveLength(predicted.length)
+    predicted.forEach((line, i) => {
+      const run = runs[i]!
+      expect(run.tc).toBe(letterSpacing)
+      expect(run.x).toBeCloseTo(line.x, 3)
+      expect(run.y).toBeCloseTo(line.baselineY, 3)
+      // One glyph per character: no ligature or arrow formed.
+      expect(run.glyphX).toHaveLength([...line.text].length)
+      // The ink the PDF draws is exactly as wide as the engine measured.
+      expect(run.inkEnd - run.x).toBeCloseTo(metrics.widthOfText(line.text, slot.size, letterSpacing), 3)
+      // And it sits where the alignment says, against the padded box.
+      const left = input.originX
+      const right = input.originX + input.width
+      if (align === 'left') expect(run.x).toBeCloseTo(left, 3)
+      if (align === 'right') expect(run.inkEnd).toBeCloseTo(right, 3)
+      if (align === 'center') expect((run.x + run.inkEnd) / 2).toBeCloseTo((left + right) / 2, 3)
+      // Positive spacing never lets a wrapped line run past the box.
+      expect(run.inkEnd).toBeLessThanOrEqual(right + 0.001)
+    })
+  })
+})
+
+test('letter spacing really reaches the page, and wraps sooner', async () => {
+  // The cases above would pass just as well if both sides ignored the
+  // spacing. Here the same slot is printed both ways: spaced, every glyph
+  // after the first in a line sits (index * spacing) further along than
+  // the same glyph shaped the same way unspaced would, and the text needs
+  // more lines.
+  const base: Slot = {
+    id: 'track', page: 0, x: 40, y: 760, width: 150,
+    text: 'Subcontractor shall be bound by the procedures therein',
+    fontId: 'sans', size: 12, color: { r: 0, g: 0, b: 0 }, align: 'left', lineHeight: 1.2,
+  }
+  const metrics = createFontMetrics(fonts.sans)
+  const plain = layoutText(slotLayout(base, base.text, metrics), metrics)
+  const spaced = layoutText(slotLayout({ ...base, letterSpacing: 3 }, base.text, metrics), metrics)
+  expect(spaced.length).toBeGreaterThan(plain.length)
+
+  const runs = await drawnGlyphRuns(await renderPdf(await doc(), [{ ...base, text: 'Subcontractor', letterSpacing: 3 }], fonts))
+  expect(runs).toHaveLength(1)
+  const glyphs = runs[0]!.glyphX
+  glyphs.forEach((x, i) => {
+    // No ligature forms in this word in Inter, so unspaced shaping is the same glyphs.
+    const unspacedPrefix = metrics.widthOfText('Subcontractor'.slice(0, i), 12)
+    expect(x - base.x).toBeCloseTo(unspacedPrefix + i * 3, 3)
+  })
+
+  // And an unspaced slot writes no Tc at all: its stream is what it always was.
+  const unspacedStream = requireContentStreamText(await renderPdf(await doc(), [base], fonts))
+  expect(unspacedStream).not.toMatch(/\bTc\b/)
+})
