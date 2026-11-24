@@ -199,7 +199,11 @@ test.each(['sans', 'sans-bold', 'sans-light', 'sans-medium', 'sans-semibold'] as
  * stand-ins (Liberation Sans, Gelasio) -- each its own file: a wrapped,
  * right-aligned paragraph prints exactly where the layout engine put it.
  */
-test.each(['sourceserif', 'sourceserif-bold', 'arial', 'arial-bold', 'georgia', 'georgia-bold'] as const)(
+test.each([
+  'sourceserif', 'sourceserif-bold', 'arial', 'arial-bold', 'georgia', 'georgia-bold',
+  'sourceserif-light', 'sourceserif-semibold', 'georgia-medium', 'georgia-semibold',
+  'mono-light', 'mono-medium', 'mono-semibold', 'mono-bold',
+] as const)(
   '%s: a wrapped right-aligned paragraph prints exactly where the layout engine put it',
   async (fontId) => {
     const slot: Slot = {
