@@ -1,5 +1,5 @@
 import type { FontId } from '../fonts/registry'
-import type { Align } from '../layout/wrap'
+import type { Align, VerticalAlign } from '../layout/wrap'
 
 /**
  * A colour, **components 0–1**, not 0–255.
@@ -26,7 +26,9 @@ export type Slot = {
    * Minimum box height, PDF points. The box is always at least as tall as
    * its text (see `layoutHeight`); this only makes it taller -- the writing
    * area a user sees in the write step. Absent or 0 = exactly the text's
-   * height. Never used by the export: text is placed by `x`/`y`/`width`.
+   * height. The export reads it only to place text that is not
+   * top-aligned (see `verticalAlign`); top-aligned text is placed by
+   * `x`/`y`/`width` alone.
    */
   height?: number
   text: string
@@ -51,6 +53,11 @@ export type Slot = {
   size: number
   color: RGB
   align: Align
+  /**
+   * Where the text sits in a box taller than it (`height`). Absent = top,
+   * which is how every slot saved before this existed was drawn.
+   */
+  verticalAlign?: VerticalAlign
   lineHeight: number
 }
 

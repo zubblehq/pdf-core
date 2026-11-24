@@ -32,7 +32,7 @@ which behaviour moved and why.
 ## Commands
 
 ```bash
-npm test            # 179 tests
+npm test            # 199 tests
 npm run test:watch
 npm run typecheck
 npm run fonts:embed # regenerate src/fonts/embedded.ts after changing a .ttf
@@ -51,7 +51,7 @@ src/
   geometry/        PDF ↔ screen coordinates, the Y-flip
   document/        pages, tables, normalising an uploaded PDF
   render/          writing the PDF with pdf-lib
-  fonts/           the five faces, their registry, and their embedded base64
+  fonts/           the eight faces, their registry, and their embedded base64
   contracts/       zod schemas for the wire + the version guard
 test/
   invariant.test.ts          the one that matters
@@ -75,7 +75,7 @@ test/
 
 ## Changing the fonts
 
-The five faces are the one thing shared by *file*, not by code:
+The eight faces are the one thing shared by *file*, not by code:
 
 1. Replace the `.ttf` in `src/fonts/files/`
 2. `npm run fonts:embed` — regenerates the base64 module the server draws with

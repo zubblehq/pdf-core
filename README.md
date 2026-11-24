@@ -114,7 +114,7 @@ and for the tests that check glyph positions. Regenerate with
 
 ## Tests
 
-179 of them, and they are the reason this package can be changed safely. The
+199 of them, and they are the reason this package can be changed safely. The
 ones that matter most build a real PDF, read the glyph coordinates back out of
 its content stream, and compare them against what `layoutText` predicted —
 `test/invariant.test.ts`. If that fails, the preview no longer matches the
